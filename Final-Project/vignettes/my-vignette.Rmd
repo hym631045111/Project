@@ -1,0 +1,61 @@
+---
+title: "STA141C Final Project vignette report"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{my-vignette}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup, message=FALSE}
+library(blblm)
+```
+
+In this project, we add some new functionality to the package `blblm`. First, the original package can only run on 1 CPU. In this new version, furrr and future packages allow us to run the functions on multiple CPU. It can save lots of time when we do jobs parallel (like 10 people are doing the same task simultaneously). 
+
+Seoncd, the data argument now noly only can take a dataframe, but also a vector of filenames. Users do not need to read the entired dataset in R before they can run the analysis. Instead, reading data process can also distribute to other workers. In other words, we also no data footprint in the entire process. 
+
+Last, we add an argument `type`. It takes either `lm` or `glm` to specify fitting linear regression or logistic regression respectively. 
+
+One new argument `cl` is added to the main function, blblm. It is used to specify how many CPU we want to use. If there are only 1 CPU, also the default value, then we will not do parallel. If there are 2 or more CPU requested, parallel computing will kick start. The parallel computing is done by specifying the plan using the future package. The plan() functino allows the user to plan the future. More specifically, it specidies how future() are resolved, for example, either sequentiallhy or in parallel. 
+
+The following few examples are going to demonstrate the changes we made. The dataset we use it the `mtcars` dataset in R. The data was extracted from the 1974 Motor Trend US magazine, and comprises fuel consumption and 10 aspects of automobile design and performance for 32 automobiles (1973–74 models). The work we did in this package is more or less similar to linear regression, except we add a level of bootstrap to it. 
+
+```{r}
+# example of using 1 CUP and full dataframe
+blblm_model <- blblm(speed ~ dist, data = cars, m = 10, B = 100)
+coef(blblm_model)
+```
+
+```{r}
+# example of using 3 CUP and full dataframe
+blblm_model <- blblm(speed ~ dist, data = cars, m = 10, B = 100, cl = 3)
+coef(blblm_model)
+```
+
+```{r}
+# example of using 3 CUP and filenames
+write.csv(cars, "car1.csv")
+write.csv(cars, "car2.csv")
+blblm_model <- blblm(speed ~ dist, data = c("car1.csv", "car2.csv"), m = 10, B = 100, cl = 3)
+coef(blblm_model)
+```
+
+Eventually, all the test cases are pass. The check pass too. 
+
+The example to run logistic regression model is given below. 
+
+```{r}
+# logistic regression model 
+mydata <- iris[1:100,]
+mydata$Species <- droplevels(mydata$Species)
+blblm_fit <- blblm(Species ~ ., data = mydata, m = 10, B = 100, cl = 1, type = "glm")
+```
+
